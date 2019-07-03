@@ -63,6 +63,10 @@ func HandleEvent(w http.ResponseWriter, r *http.Request) {
 		HandleRecall(w, r, b)
 	case "POST", "PUT":
 		HandleUpdate(w, r, b)
+	case "OPTIONS":
+		w.Header().Add("Allow", "OPTIONS, GET, POST, PUT")
+		w.Header().Add("Cache-Control", "max-age=604800")
+		w.WriteHeader(http.StatusNoContent)
 	default:
 		http.Error(w, "unsupported method", http.StatusBadRequest)
 	}
@@ -77,7 +81,11 @@ func HandleUpdate(w http.ResponseWriter, r *http.Request, bucket string) {
 		return
 	}
 	var v event.Map
-	switch r.Header.Get("Content-Type") {
+	ct := r.Header.Get("Content-Type")
+	if i := strings.Index(ct, ";"); i != -1 {
+		ct = ct[:i] // discard after semicolon
+	}
+	switch ct {
 	case "application/json":
 		err = json.Unmarshal(body, &v)
 	case "application/msgpack":
@@ -97,6 +105,8 @@ func HandleUpdate(w http.ResponseWriter, r *http.Request, bucket string) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, PUT")
 	w.WriteHeader(200)
 }
 
@@ -129,6 +139,7 @@ func HandleRecall(w http.ResponseWriter, r *http.Request, bucket string) {
 			return
 		}
 	}
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
 	w.Write(buf)
 }
-
